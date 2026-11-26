@@ -1,5 +1,12 @@
 import { plainToInstance } from 'class-transformer';
-import { IsEnum, IsInt, Max, Min, validateSync } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  Matches,
+  Max,
+  Min,
+  validateSync,
+} from 'class-validator';
 
 export enum Ambiente {
   Development = 'development',
@@ -15,6 +22,12 @@ export class VariaveisAmbiente {
   @Min(1)
   @Max(65535)
   PORT!: number;
+
+  @Matches(/^postgres(ql)?:\/\/\S+$/, {
+    message:
+      'DATABASE_URL deve ser uma URL postgresql://usuario:senha@host:porta/banco',
+  })
+  DATABASE_URL!: string;
 }
 
 export function validarVariaveisAmbiente(

@@ -38,6 +38,9 @@ A API valida as variáveis ao subir (`src/config/env.validation.ts`). Todas as q
 | `POSTGRES_USER` | texto | Usuário do PostgreSQL (lido só pelo Docker Compose, por enquanto) |
 | `POSTGRES_PASSWORD` | texto, não vazio | Senha do PostgreSQL (lido só pelo Docker Compose, por enquanto) |
 | `POSTGRES_DB` | texto | Banco criado na primeira subida (lido só pelo Docker Compose, por enquanto) |
+| `DATABASE_URL` | `postgresql://usuario:senha@host:porta/banco` | Conexão da API e do Prisma com o banco |
+
+No `.env`, `DATABASE_URL` aponta para `localhost`, para a API e o Prisma rodando na sua máquina. No Docker, o Compose a substitui por uma URL montada com `POSTGRES_*` e o host `postgres`. Se a senha tiver caracteres especiais (`@`, `:`, `/`, `#`), ela precisa ser codificada na URL. Mantenha `DATABASE_URL` e `POSTGRES_*` com os mesmos valores.
 
 ## Comandos
 
@@ -48,8 +51,22 @@ A API valida as variáveis ao subir (`src/config/env.validation.ts`). Todas as q
 | `npm run format` | Formata com o Prettier |
 | `npm run start:dev` | Sobe em modo desenvolvimento |
 | `npm run start:prod` | Sobe o build de `dist/` |
+| `npx prisma migrate dev --name <nome>` | Cria e aplica uma migration a partir do `schema.prisma` (desenvolvimento) |
+| `npx prisma migrate deploy` | Aplica as migrations pendentes (sem criar nenhuma) |
+| `npx prisma generate` | Gera o client em `src/generated/prisma` |
 
-A conexão da API com o banco e as migrations entram na próxima etapa e serão documentadas aqui.
+## Banco de dados (Prisma 7)
+
+- O modelo fica em `prisma/schema.prisma`, com os nomes iguais aos do diagrama de classes, em camelCase, também no banco (tabela `"Usuario"`, coluna `"trocaSenhaPendente"`). Em SQL escrito à mão, os identificadores levam aspas duplas.
+- A URL do banco fica em `prisma.config.ts`, que lê o `.env`; o schema não tem URL.
+- O client é gerado em `src/generated/prisma`, que não vai para o git. O `migrate dev` do Prisma 7 não gera o client: depois de mudar o schema, rode `npx prisma generate`. O Dockerfile já gera o client no build.
+- O Prisma 7 exige driver adapter; a API usa `@prisma/adapter-pg`, criado em `src/database/prisma.service.ts`. Só os repositories injetam o `PrismaService`.
+- Para um banco novo, suba o PostgreSQL e aplique as migrations pela sua máquina:
+
+```bash
+docker compose up -d postgres
+npx prisma migrate deploy
+```
 
 ## Estrutura
 
@@ -57,7 +74,8 @@ A conexão da API com o banco e as migrations entram na próxima etapa e serão 
 src/
 ├─ main.ts, app.module.ts
 ├─ config/                 leitura e validação das variáveis de ambiente (RNF-14)
-├─ database/               acesso ao banco (módulo global)            [a criar]
+├─ database/               PrismaService e módulo global do banco
+├─ generated/              client do Prisma (gerado, fora do git)
 ├─ common/                 guards, filtros de erro, mensagens          [a criar]
 ├─ registro-operacao/      registro de operações sensíveis (RNF-11)   [a criar]
 └─ <modulo>/               um por área: auth, barbearia, servicos,

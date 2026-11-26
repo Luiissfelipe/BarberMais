@@ -1,0 +1,18 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Usuario {
+  id                  String    @id @db.Uuid
+  email               String    @unique
+  nome                String
+  administrador       Boolean   @default(false)
+  trocaSenhaPendente  Boolean   @default(false)
+  tentativasInvalidas Int       @default(0)
+  bloqueadoAte        DateTime? @db.Timestamptz
+}
