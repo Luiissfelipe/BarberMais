@@ -11,7 +11,13 @@ export enum Entidade {
   Cliente = 'Cliente',
 }
 
+export enum Origem {
+  Usuario = 'USUARIO',
+  Sistema = 'SISTEMA',
+}
+
 export interface DadosRegistroOperacao {
+  origem: Origem;
   operacao: Operacao;
   entidade: Entidade;
   idItem: string;
