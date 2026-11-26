@@ -22,7 +22,7 @@ docker compose up -d --build
 - O Compose se chama `barbermais` e tem três serviços: `postgres` (imagem `postgres:18`), `migrate` e `api`. Os dois últimos usam a mesma imagem, construída pelo `Dockerfile` e executada como o usuário `node`.
 - O `migrate` roda `prisma migrate deploy` e termina. A `api` só inicia depois que o banco fica saudável (`pg_isready` por TCP, porque durante a inicialização o servidor temporário do PostgreSQL só escuta no socket local) **e** o `migrate` termina com sucesso. Se uma migration falhar, a API não sobe: veja `docker compose logs migrate`.
 - Em um reinício com os dados já existentes, o `migrate` não reaplica nada ("No pending migrations to apply").
-- A imagem traz o `openssl` e o motor de migrations do Prisma, baixado no build (o npm bloqueia o `postinstall` do `@prisma/engines`, então o `Dockerfile` roda esse script de propósito). Sem isso o `migrate` teria que baixar o motor a cada subida.
+- A imagem traz o `openssl` e o motor de migrations do Prisma, baixado no build (o npm bloqueia o `postinstall` do `@prisma/engines`, então o `Dockerfile` roda esse script de propósito). Sem isso o `migrate` teria que baixar o motor a cada subida. O `prisma` (a CLI) está em `dependencies` de propósito: a imagem de produção roda `prisma migrate deploy` e o `npm prune --omit=dev` removeria a CLI se ela ficasse só em `devDependencies`.
 - O banco fica em `127.0.0.1:5432`, acessível só da própria máquina. A API fica na porta `PORT`.
 - Os dados ficam no volume `postgres_data`, montado em `/var/lib/postgresql`: a partir do PostgreSQL 18 a imagem guarda os dados em `/var/lib/postgresql/18/docker`, e montar em `/var/lib/postgresql/data` não persistiria.
 - `docker compose down` mantém os dados; `docker compose down -v` apaga o volume.
