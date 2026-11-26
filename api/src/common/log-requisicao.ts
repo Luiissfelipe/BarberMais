@@ -15,20 +15,20 @@ export function registrarRequisicao(
   const requestId = cls.getId();
   res.setHeader('x-request-id', requestId);
 
+  const medirDuracaoMs = () =>
+    Math.round(Number(process.hrtime.bigint() - inicio) / 1e4) / 100;
+  const identificar = () => ({
+    requestId,
+    metodo: req.method,
+    caminho: req.originalUrl.split('?')[0],
+    ...(contexto.usuarioId && { usuarioId: contexto.usuarioId }),
+  });
+
   res.on('finish', () => {
-    const duracaoMs =
-      Math.round(Number(process.hrtime.bigint() - inicio) / 1e4) / 100;
+    const duracaoMs = medirDuracaoMs();
     const status = res.statusCode;
-    const caminho = req.originalUrl.split('?')[0];
-    const dados = {
-      requestId,
-      metodo: req.method,
-      caminho,
-      status,
-      duracaoMs,
-      ...(contexto.usuarioId && { usuarioId: contexto.usuarioId }),
-    };
-    const mensagem = `${req.method} ${caminho} ${status} ${duracaoMs}ms`;
+    const dados = { ...identificar(), status, duracaoMs };
+    const mensagem = `${req.method} ${dados.caminho} ${status} ${duracaoMs}ms`;
 
     if (status >= 500) {
       logger.error(mensagem, dados);
@@ -37,5 +37,17 @@ export function registrarRequisicao(
     } else {
       logger.log(mensagem, dados);
     }
+  });
+
+  res.on('close', () => {
+    if (res.writableFinished) {
+      return;
+    }
+    const duracaoMs = medirDuracaoMs();
+    const dados = { ...identificar(), abortada: true, duracaoMs };
+    logger.warn(
+      `${req.method} ${dados.caminho} abortada pelo cliente ${duracaoMs}ms`,
+      dados,
+    );
   });
 }
