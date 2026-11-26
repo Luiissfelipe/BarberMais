@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import type { INestApplication } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ClsMiddleware, ClsService } from 'nestjs-cls';
 import type { ContextoRequisicao } from './contexto-requisicao.js';
 import { registrarRequisicao } from './log-requisicao.js';
 import { criarPipeValidacao } from './validacao.js';
 
-export function configurarApp(app: INestApplication): void {
+export function configurarApp(app: NestExpressApplication): void {
+  app.disable('x-powered-by');
   app.use(
     new ClsMiddleware({
       generateId: true,

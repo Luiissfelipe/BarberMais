@@ -35,7 +35,7 @@ A API valida as variáveis ao subir (`src/config/env.validation.ts`). Todas as q
 
 | Variável | Valores | Uso |
 |---|---|---|
-| `NODE_ENV` | `development`, `production` ou `test` | Ambiente de execução |
+| `NODE_ENV` | `development`, `production` ou `test` | Ambiente de execução. Só `development` liga o Swagger e os logs `debug`/`verbose`; a hospedagem deve definir `production` |
 | `PORT` | inteiro de 1 a 65535 | Porta HTTP da API |
 | `POSTGRES_USER` | texto | Usuário do PostgreSQL (lido só pelo Docker Compose, por enquanto) |
 | `POSTGRES_PASSWORD` | texto, não vazio | Senha do PostgreSQL (lido só pelo Docker Compose, por enquanto) |
@@ -83,12 +83,12 @@ npx prisma migrate deploy
 
 ## Logs técnicos
 
-- Usam o `Logger` do Nest e saem na saída padrão (`docker compose logs api`). Em desenvolvimento (`NODE_ENV` diferente de `production`): texto colorido, níveis `log`, `warn`, `error`, `fatal`, `debug` e `verbose`. Em produção: uma linha JSON por evento, níveis `log`, `warn`, `error` e `fatal`; erros vão para a saída de erro. A configuração fica em `src/common/logger.ts`.
+- Usam o `Logger` do Nest e saem na saída padrão (`docker compose logs api`). Com `NODE_ENV=development`: texto colorido, níveis `log`, `warn`, `error`, `fatal`, `debug` e `verbose`. Com `production`: uma linha JSON por evento, níveis `log`, `warn`, `error` e `fatal`; erros vão para a saída de erro. Com `test` (ou sem `NODE_ENV`): texto, só os níveis de produção. A configuração fica em `src/common/logger.ts`.
 - **Cada requisição** gera uma linha ao terminar, inclusive as barradas antes de chegar ao controller (login recusado, 401, 403, rota inexistente): método, caminho **sem a query string**, status, duração em ms, `requestId` e, quando há usuário autenticado, `usuarioId`. O nível segue o status: até 399 `log`, 400 a 499 `warn`, 500 em diante `error`. O `requestId` é gerado pela API e devolvido no cabeçalho `x-request-id`, para o front ou um usuário informar qual requisição falhou. O código está em `src/common/log-requisicao.ts`.
 - Erros não tratados (500) são registrados pelo Nest com a pilha, no contexto `ExceptionsHandler`, logo antes da linha da requisição.
 - Na subida e no encerramento: `Bootstrap` (porta), `PrismaService` (conexão aberta e fechada). O encerramento por `SIGTERM` (por exemplo, `docker compose stop`) fecha a conexão com o banco.
 - Convenção nos services: `private readonly logger = new Logger(NomeDoService.name)` e um log de nível `log` depois de cada operação de negócio concluída, com os identificadores envolvidos. Dentro de uma transação, uma linha escrita antes do fim do método pode descrever algo que depois será desfeito: use `debug` nesses casos, como em `RegistroOperacaoService`.
-- **Nunca registrar**: corpo da requisição, cabeçalhos, query string, senhas, tokens, nome, telefone ou e-mail. Registrar só identificadores (`id`). O `redact` do logger (`password`, `senha`, `token`, `authorization`, `email` e similares) é uma rede de proteção para objetos passados ao logger, não uma licença para logar esses dados.
+- **Nunca registrar**: corpo da requisição, cabeçalhos, query string, senhas, tokens, nome, telefone ou e-mail. Registrar só identificadores (`id`). O `redact` do logger (`password`, `senha`, `token`, `authorization`, `email`, `nome`, `telefone`, `cookie`, `secret`, `apiKey` e similares, em qualquer nível do objeto; casa pelo nome do campo, não pelo valor) é uma rede de proteção para objetos passados ao logger, não uma licença para logar esses dados.
 - Limites conhecidos: só a linha da requisição traz o `requestId`; as demais linhas (inclusive a pilha do erro 500) não o trazem e se ligam à requisição pelo horário. A retenção de 90 dias dos registros de erro depende de para onde a saída padrão for enviada, e a hospedagem ainda não foi decidida; o `docker compose` guarda os logs só enquanto o contêiner existir.
 
 ## Erros e validação
@@ -104,7 +104,7 @@ npx prisma migrate deploy
 
 ## Documentação da API (Swagger)
 
-- Interface em `/docs` e contrato em JSON em `/docs/json`, **só fora de produção** (`NODE_ENV` diferente de `production`); em produção as duas respondem `404`. Código em `src/common/documentacao.ts`.
+- Interface em `/docs` e contrato em JSON em `/docs/json`, **só com `NODE_ENV=development`**; em qualquer outro valor (`production`, `test`) as duas respondem `404`, de modo que uma hospedagem que esqueça de definir a variável não publica o contrato da API. Código em `src/common/documentacao.ts`.
 - **Todo controller novo** leva `@ApiTags('nome')`, `@ApiErros()` (descreve uma vez as respostas de erro no formato único) e `@ApiBearerAuth()` quando a rota é autenticada. Respostas de sucesso: `@ApiOkResponse({ type: X })` ou `@ApiCreatedResponse({ type: X })`.
 - **Todo campo de DTO** leva `@ApiProperty()` (ou `@ApiPropertyOptional()`), com `minimum`, `maximum` e `type` quando houver regra de validação equivalente, e `type: () => OutroDto` em campo aninhado. É explícito de propósito: o plugin do Swagger para o CLI do Nest **não funciona** em pasta com acento no caminho (no Windows, como `...\Área de Trabalho\...`): ele gera um `import` corrompido (`Á` vira `/u00C1`) e a API compilada não sobe. Para usar o plugin, o repositório precisa estar em um caminho só com ASCII em todas as máquinas da equipe; nesse caso, ligar o plugin em `nest-cli.json` e tirar os `@ApiProperty` repetidos.
 
