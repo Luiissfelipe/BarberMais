@@ -1,7 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { TransactionalAdapterPrisma } from '@nestjs-cls/transactional-adapter-prisma';
-import { PrismaService } from '../database/prisma.service.js';
+import type { TransacaoHost } from '../database/transacao-host.js';
 import type { RegistroOperacao } from '../generated/prisma/client.js';
 import type { Entidade, Operacao } from './operacao.js';
 
@@ -16,9 +15,7 @@ export interface NovoRegistroOperacao {
 @Injectable()
 export class RegistroOperacaoRepository {
   constructor(
-    private readonly txHost: TransactionHost<
-      TransactionalAdapterPrisma<PrismaService>
-    >,
+    @Inject(TransactionHost) private readonly txHost: TransacaoHost,
   ) {}
 
   criar(dados: NovoRegistroOperacao): Promise<RegistroOperacao> {
