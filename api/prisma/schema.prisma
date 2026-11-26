@@ -27,4 +27,7 @@ model RegistroOperacao {
   dataHora      DateTime @default(now()) @db.Timestamptz
   responsavelId String?  @db.Uuid
   responsavel   Usuario? @relation(fields: [responsavelId], references: [id], onDelete: Restrict)
+
+  @@index([idItem, dataHora])
+  @@index([responsavelId])
 }
