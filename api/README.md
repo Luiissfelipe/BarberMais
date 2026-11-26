@@ -91,6 +91,23 @@ npx prisma migrate deploy
 - **Nunca registrar**: corpo da requisição, cabeçalhos, query string, senhas, tokens, nome, telefone ou e-mail. Registrar só identificadores (`id`). O `redact` do logger (`password`, `senha`, `token`, `authorization`, `email` e similares) é uma rede de proteção para objetos passados ao logger, não uma licença para logar esses dados.
 - Limites conhecidos: só a linha da requisição traz o `requestId`; as demais linhas (inclusive a pilha do erro 500) não o trazem e se ligam à requisição pelo horário. A retenção de 90 dias dos registros de erro depende de para onde a saída padrão for enviada, e a hospedagem ainda não foi decidida; o `docker compose` guarda os logs só enquanto o contêiner existir.
 
+## Erros e validação
+
+- **Formato único** de toda resposta de erro (`src/common/erros/`): `{ statusCode, codigo, message, requestId, erros? }`. `codigo` é o código `MSGE-nn` da documentação ou um código técnico; `message` é o texto exato da documentação; `requestId` é o mesmo do cabeçalho `x-request-id`; `erros` só aparece na validação, um item por campo: `{ campo, codigo, message }`. O `codigo` e a `message` do topo são os do primeiro item.
+- **Quem produz o erro**: o service lança `new ErroDeNegocio(Mensagens.MSGE_05)`; o catálogo (`src/common/mensagens/mensagens.ts`) tem as 49 mensagens do Cap. 5, com código, status HTTP e texto exatos, e funções para as que têm variável (`Mensagens.MSGE_40(minutos)`, `Mensagens.MSGE_09(dia, abertura, fechamento)`). O catálogo foi gerado a partir da tabela do Cap. 5 e conferido nela (49 de 49); se o Cap. 5 mudar, gerar de novo e conferir.
+- **Quem formata**: o filtro global `FiltroExcecoes` pega tudo (erros de negócio, do Nest, JSON malformado e falhas inesperadas) e responde no formato único. O texto da resposta vem sempre do catálogo, nunca da exceção original, então nenhum detalhe interno vaza. Falha inesperada vira `500` com `ERRO_INTERNO`; o filtro registra só os `5xx`, com a pilha e o `requestId` (os `4xx` já saem na linha da requisição). Erros do banco são registrados só com nome, código e linhas da pilha, porque a mensagem deles pode trazer valores dos dados.
+- **Status por mensagem**: `400` campo inválido, `409` valor repetido, `422` regra de negócio recusada, `401` credenciais (MSGE-39) e sessão (MSGE-48), `403` sem permissão ou acesso inativo (MSGE-47, 49), `429` bloqueio por tentativas (MSGE-40). Nunca `401` para erro que não seja de sessão ou de login, porque o front pode tratar qualquer `401` como sessão perdida. Sem token, token inválido ou expirado: `401` com a MSGE-48.
+- **Códigos técnicos** (a documentação não tem mensagem para esses casos; os textos são provisórios, até o Samuel documentar): `ERRO_INTERNO` (500), `NAO_ENCONTRADO` (404, rota ou recurso), `REQUISICAO_INVALIDA` (400, por exemplo JSON malformado), `CAMPO_INVALIDO` e `CAMPO_NAO_PERMITIDO` (validação).
+- **Os repositories traduzem os erros do banco** (por exemplo, valor repetido) para `ErroDeNegocio`. Um erro do banco que chegue ao filtro sem tradução é tratado como `500`.
+- **Validação de entrada**: `ValidationPipe` global (`src/common/validacao.ts`) com `whitelist` e `forbidNonWhitelisted` (propriedade desconhecida é erro), `transform` e `stopAtFirstError` (um erro por campo). O DTO aponta para o **código** da mensagem, e o pipe resolve o texto: `@IsNotEmpty({ message: 'MSGE-01' })`. Mensagens com variável não servem para DTO; saem do service, por `ErroDeNegocio`. Campos numéricos vindos da query string chegam como texto: use `@Type(() => Number)` no DTO. O corpo JSON é estrito (`"50"` não vira número). Nenhum DTO deixa a mensagem padrão do class-validator, que está em inglês: o pipe a troca por `CAMPO_INVALIDO`.
+- **Configuração da aplicação** em um lugar só: `configurarApp` (`src/common/configurar-app.ts`), usada pelo `main.ts`. O middleware que abre o contexto da requisição (e gera o `requestId`) é montado ali, antes do leitor de corpo; montado pelo módulo, ele rodaria depois, e um JSON malformado sairia sem `requestId` e sem linha de log.
+
+## Documentação da API (Swagger)
+
+- Interface em `/docs` e contrato em JSON em `/docs/json`, **só fora de produção** (`NODE_ENV` diferente de `production`); em produção as duas respondem `404`. Código em `src/common/documentacao.ts`.
+- **Todo controller novo** leva `@ApiTags('nome')`, `@ApiErros()` (descreve uma vez as respostas de erro no formato único) e `@ApiBearerAuth()` quando a rota é autenticada. Respostas de sucesso: `@ApiOkResponse({ type: X })` ou `@ApiCreatedResponse({ type: X })`.
+- **Todo campo de DTO** leva `@ApiProperty()` (ou `@ApiPropertyOptional()`), com `minimum`, `maximum` e `type` quando houver regra de validação equivalente, e `type: () => OutroDto` em campo aninhado. É explícito de propósito: o plugin do Swagger para o CLI do Nest **não funciona** em pasta com acento no caminho (no Windows, como `...\Área de Trabalho\...`): ele gera um `import` corrompido (`Á` vira `/u00C1`) e a API compilada não sobe. Para usar o plugin, o repositório precisa estar em um caminho só com ASCII em todas as máquinas da equipe; nesse caso, ligar o plugin em `nest-cli.json` e tirar os `@ApiProperty` repetidos.
+
 ## Estrutura
 
 ```
@@ -99,7 +116,7 @@ src/
 ├─ config/                 leitura e validação das variáveis de ambiente (RNF-14)
 ├─ database/               PrismaService e módulo global do banco
 ├─ generated/              client do Prisma (gerado, fora do git)
-├─ common/                 contexto da requisição; guards, filtros de erro e mensagens [a criar]
+├─ common/                 contexto e log da requisição, erros, validação, mensagens e documentação; guards [a criar]
 ├─ registro-operacao/      registro de operações sensíveis (RNF-11)
 └─ <modulo>/               um por área: auth, barbearia, servicos,
                            profissionais, clientes, planos-assinatura [a criar]
