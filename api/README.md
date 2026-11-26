@@ -19,7 +19,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-- O Compose se chama `barbermais` e tem três serviços: `postgres` (imagem `postgres:18`), `migrate` e `api`. Os dois últimos usam a mesma imagem, construída pelo `Dockerfile` e executada como o usuário `node`.
+- O Compose se chama `barbermais` e tem três serviços: `postgres` (imagem `postgres:18`), `migrate` e `api`. Os dois últimos usam a mesma imagem (`barbermais-api`), construída uma só vez pelo `Dockerfile` e executada como o usuário `node`. A `api` tem healthcheck: uma requisição a `/` dentro do contêiner, em que qualquer resposta abaixo de `500` (inclusive o `404` de hoje) conta como saudável.
 - O `migrate` roda `prisma migrate deploy` e termina. A `api` só inicia depois que o banco fica saudável (`pg_isready` por TCP, porque durante a inicialização o servidor temporário do PostgreSQL só escuta no socket local) **e** o `migrate` termina com sucesso. Se uma migration falhar, a API não sobe: veja `docker compose logs migrate`.
 - Em um reinício com os dados já existentes, o `migrate` não reaplica nada ("No pending migrations to apply").
 - A imagem traz o `openssl` e o motor de migrations do Prisma, baixado no build (o npm bloqueia o `postinstall` do `@prisma/engines`, então o `Dockerfile` roda esse script de propósito). Sem isso o `migrate` teria que baixar o motor a cada subida. O `prisma` (a CLI) está em `dependencies` de propósito: a imagem de produção roda `prisma migrate deploy` e o `npm prune --omit=dev` removeria a CLI se ela ficasse só em `devDependencies`.
@@ -38,11 +38,11 @@ A API valida as variáveis ao subir (`src/config/env.validation.ts`). Todas as q
 | `NODE_ENV` | `development`, `production` ou `test` | Ambiente de execução. Só `development` liga o Swagger e os logs `debug`/`verbose`; a hospedagem deve definir `production` |
 | `PORT` | inteiro de 1 a 65535 | Porta HTTP da API |
 | `POSTGRES_USER` | texto | Usuário do PostgreSQL (lido só pelo Docker Compose, por enquanto) |
-| `POSTGRES_PASSWORD` | texto, não vazio | Senha do PostgreSQL (lido só pelo Docker Compose, por enquanto) |
+| `POSTGRES_PASSWORD` | só letras e números, não vazio | Senha do PostgreSQL (lido só pelo Docker Compose, por enquanto) |
 | `POSTGRES_DB` | texto | Banco criado na primeira subida (lido só pelo Docker Compose, por enquanto) |
 | `DATABASE_URL` | `postgresql://usuario:senha@host:porta/banco` | Conexão da API e do Prisma com o banco |
 
-No `.env`, `DATABASE_URL` aponta para `localhost`, para a API e o Prisma rodando na sua máquina. No Docker, o Compose a substitui por uma URL montada com `POSTGRES_*` e o host `postgres`. Se a senha tiver caracteres especiais (`@`, `:`, `/`, `#`), ela precisa ser codificada na URL. Mantenha `DATABASE_URL` e `POSTGRES_*` com os mesmos valores.
+No `.env`, `DATABASE_URL` aponta para `localhost`, para a API e o Prisma rodando na sua máquina. No Docker, o Compose a substitui por uma URL montada com `POSTGRES_*` e o host `postgres`. O Compose monta essa URL com a senha como ela está no `.env`, sem codificar, e `/`, `#` e `?` quebram a URL (o `migrate` sai com erro 1), enquanto o `$` é interpretado pelo próprio Compose e a senha muda sem aviso. Por isso use uma senha só com letras e números, por exemplo `openssl rand -hex 24`. Mantenha `DATABASE_URL` (a do `.env`, usada fora do Docker) e `POSTGRES_*` com os mesmos valores.
 
 ## Comandos
 
