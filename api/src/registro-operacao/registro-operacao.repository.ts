@@ -32,11 +32,4 @@ export class RegistroOperacaoRepository {
       },
     });
   }
-
-  listarPorItem(idItem: string): Promise<RegistroOperacao[]> {
-    return this.txHost.tx.registroOperacao.findMany({
-      where: { idItem },
-      orderBy: { dataHora: 'asc' },
-    });
-  }
 }

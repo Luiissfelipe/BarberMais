@@ -77,7 +77,7 @@ npx prisma migrate deploy
 - `operacao` e `entidade` são enums em `src/registro-operacao/operacao.ts`. Uma operação nova entra ali.
 - O responsável é o usuário autenticado, lido de `ContextoRequisicao.usuarioId` (`src/common/contexto-requisicao.ts`), que o guard de autenticação preenche. Nunca vem do corpo da requisição. `origem` diz de quem é a operação: `Origem.Usuario` (toda ação feita por uma pessoa) exige o usuário no contexto e, sem ele, o `registrar` lança `ErroResponsavelAusente` (vira `500`, e o nome do erro aparece no log) em vez de gravar sem responsável; `Origem.Sistema` (tarefas automáticas, sem usuário) grava o responsável vazio, mesmo que haja usuário no contexto.
 - `valorAnterior` nunca guarda dado pessoal. Na troca de e-mail de profissional ele fica vazio.
-- A tabela `"RegistroOperacao"` é imutável: um trigger do banco rejeita `UPDATE`, `DELETE` e `TRUNCATE`, e o repository só insere e lê. Não existe rota de edição nem de exclusão.
+- A tabela `"RegistroOperacao"` é imutável: um trigger do banco rejeita `UPDATE`, `DELETE` e `TRUNCATE`, e o repository só insere (a documentação só exige registrar; se uma tarefa futura precisar consultar os registros, a leitura entra então, com limite). Não existe rota de edição nem de exclusão.
 - O trigger está numa migration escrita à mão. Para criar uma migration assim: `npx prisma migrate dev --create-only --name <nome>`, escrever o SQL no arquivo gerado e rodar `npx prisma migrate dev`. O Prisma não toca em triggers e funções que não estão no `schema.prisma`.
 - Em desenvolvimento, linhas de `"RegistroOperacao"` só saem com `npx prisma migrate reset` ou apagando o volume do banco (`docker compose down -v`), nunca por `DELETE`.
 

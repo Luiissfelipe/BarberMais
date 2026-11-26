@@ -47,8 +47,4 @@ export class RegistroOperacaoService {
     }
     return usuarioId;
   }
-
-  listarPorItem(idItem: string): Promise<RegistroOperacao[]> {
-    return this.registroOperacaoRepository.listarPorItem(idItem);
-  }
 }
