@@ -23,9 +23,14 @@ function extrairStatus(excecao: unknown): number | undefined {
     return excecao.getStatus();
   }
   if (typeof excecao === 'object' && excecao !== null) {
-    const { status, statusCode } = excecao as Record<string, unknown>;
+    const { expose, status, statusCode } = excecao as Record<string, unknown>;
     const candidato = typeof status === 'number' ? status : statusCode;
-    if (typeof candidato === 'number' && candidato >= 400 && candidato < 600) {
+    if (
+      expose === true &&
+      typeof candidato === 'number' &&
+      candidato >= 400 &&
+      candidato < 600
+    ) {
       return candidato;
     }
   }
@@ -45,34 +50,19 @@ function mensagemPorStatus(status: number | undefined): EntradaMensagem {
   return MensagensTecnicas.ERRO_INTERNO;
 }
 
-function erroDeBanco(excecao: Error): boolean {
-  const codigo = (excecao as { code?: unknown }).code;
-  return (
-    excecao.name.startsWith('PrismaClient') ||
-    excecao.name === 'DatabaseError' ||
-    (typeof codigo === 'string' && /^(P\d{4}|[0-9A-Z]{5})$/.test(codigo))
-  );
-}
-
 function descrever(excecao: unknown): { resumo: string; pilha?: string } {
   if (!(excecao instanceof Error)) {
     return { resumo: 'valor lançado que não é um Error' };
   }
-  if (erroDeBanco(excecao)) {
-    const codigo = (excecao as { code?: unknown }).code;
-    const pilha = (excecao.stack ?? '')
-      .split('\n')
-      .filter((linha) => QUADRO_DE_PILHA.test(linha))
-      .join('\n');
-    return {
-      resumo:
-        typeof codigo === 'string' ? `${excecao.name} ${codigo}` : excecao.name,
-      pilha,
-    };
-  }
+  const codigo = (excecao as { code?: unknown }).code;
+  const pilha = (excecao.stack ?? '')
+    .split('\n')
+    .filter((linha) => QUADRO_DE_PILHA.test(linha))
+    .join('\n');
   return {
-    resumo: `${excecao.name}: ${excecao.message}`,
-    pilha: excecao.stack,
+    resumo:
+      typeof codigo === 'string' ? `${excecao.name} ${codigo}` : excecao.name,
+    pilha,
   };
 }
 
@@ -95,11 +85,13 @@ export class FiltroExcecoes implements ExceptionFilter {
       this.registrarFalha(excecao, requisicao, requestId);
     }
 
-    this.httpAdapterHost.httpAdapter.reply(
-      contexto.getResponse(),
-      resposta,
-      resposta.statusCode,
-    );
+    const adaptador = this.httpAdapterHost.httpAdapter;
+    const respostaHttp = contexto.getResponse();
+    if (adaptador.isHeadersSent(respostaHttp)) {
+      adaptador.end(respostaHttp);
+      return;
+    }
+    adaptador.reply(respostaHttp, resposta, resposta.statusCode);
   }
 
   private montarResposta(
