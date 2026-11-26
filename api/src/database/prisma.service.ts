@@ -9,6 +9,8 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client.js';
 import type { VariaveisAmbiente } from '../config/env.validation.js';
 
+const TEMPO_LIMITE_CONEXAO_MS = 5_000;
+
 @Injectable()
 export class PrismaService
   extends PrismaClient
@@ -19,12 +21,13 @@ export class PrismaService
   constructor(config: ConfigService<VariaveisAmbiente, true>) {
     const adapter = new PrismaPg({
       connectionString: config.get('DATABASE_URL', { infer: true }),
+      connectionTimeoutMillis: TEMPO_LIMITE_CONEXAO_MS,
     });
     super({ adapter });
   }
 
   async onModuleInit() {
-    await this.$connect();
+    await this.$queryRaw`SELECT 1`;
     this.logger.log('Conexão com o banco de dados estabelecida');
   }
 
