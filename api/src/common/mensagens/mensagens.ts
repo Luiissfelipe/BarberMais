@@ -176,6 +176,20 @@ export const Mensagens = {
   ),
 } as const;
 
+type ChaveDeMensagemFixa = {
+  [K in keyof typeof Mensagens]: (typeof Mensagens)[K] extends EntradaMensagem
+    ? K
+    : never;
+}[keyof typeof Mensagens];
+
+type CodigoDaChave<K> = K extends `MSGE_${infer N}` ? `MSGE-${N}` : never;
+
+export type CodigoMsge = CodigoDaChave<ChaveDeMensagemFixa>;
+
+export function msge(codigo: CodigoMsge): CodigoMsge {
+  return codigo;
+}
+
 const mensagensFixas = Object.values(Mensagens).filter(
   (m): m is EntradaMensagem => typeof m !== 'function',
 );
