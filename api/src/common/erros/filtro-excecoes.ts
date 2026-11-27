@@ -19,22 +19,7 @@ import type { RespostaErroDto } from './resposta-erro.dto.js';
 const QUADRO_DE_PILHA = /^\s+at /;
 
 function extrairStatus(excecao: unknown): number | undefined {
-  if (excecao instanceof HttpException) {
-    return excecao.getStatus();
-  }
-  if (typeof excecao === 'object' && excecao !== null) {
-    const { expose, status, statusCode } = excecao as Record<string, unknown>;
-    const candidato = typeof status === 'number' ? status : statusCode;
-    if (
-      expose === true &&
-      typeof candidato === 'number' &&
-      candidato >= 400 &&
-      candidato < 600
-    ) {
-      return candidato;
-    }
-  }
-  return undefined;
+  return excecao instanceof HttpException ? excecao.getStatus() : undefined;
 }
 
 function mensagemPorStatus(status: number | undefined): EntradaMensagem {
