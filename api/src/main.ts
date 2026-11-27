@@ -22,4 +22,21 @@ async function bootstrap() {
   await app.listen(porta);
   new Logger('Bootstrap').log(`API pronta na porta ${porta}`, { porta });
 }
-await bootstrap();
+
+function registrarFalhaDeSubida(erro: unknown): void {
+  const nome =
+    erro instanceof Error ? erro.name : 'valor lançado que não é um Error';
+  const codigo = (erro as { code?: unknown } | null)?.code;
+  new Logger('Bootstrap').fatal(
+    `Falha ao iniciar a API: ${typeof codigo === 'string' ? `${nome} ${codigo}` : nome}`,
+  );
+}
+
+try {
+  await bootstrap();
+} catch (erro) {
+  registrarFalhaDeSubida(erro);
+  process.stderr.write('', () =>
+    process.stdout.write('', () => process.exit(1)),
+  );
+}
