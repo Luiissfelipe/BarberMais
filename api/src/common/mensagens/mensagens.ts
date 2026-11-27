@@ -1,10 +1,10 @@
 import type { EntradaMensagem } from './entrada-mensagem.js';
 
-const mensagem = (
-  codigo: string,
+const mensagem = <C extends string>(
+  codigo: C,
   status: number,
   texto: string,
-): EntradaMensagem => ({ codigo, status, texto });
+): EntradaMensagem & { codigo: C } => ({ codigo, status, texto });
 
 export const Mensagens = {
   MSGE_01: mensagem('MSGE-01', 400, 'Informe o nome do profissional.'),
@@ -176,22 +176,20 @@ export const Mensagens = {
   ),
 } as const;
 
-type ChaveDeMensagemFixa = {
-  [K in keyof typeof Mensagens]: (typeof Mensagens)[K] extends EntradaMensagem
-    ? K
+export type CodigoMsge = {
+  [K in keyof typeof Mensagens]: (typeof Mensagens)[K] extends {
+    codigo: infer C extends string;
+  }
+    ? C
     : never;
 }[keyof typeof Mensagens];
-
-type CodigoDaChave<K> = K extends `MSGE_${infer N}` ? `MSGE-${N}` : never;
-
-export type CodigoMsge = CodigoDaChave<ChaveDeMensagemFixa>;
 
 export function msge(codigo: CodigoMsge): CodigoMsge {
   return codigo;
 }
 
-const mensagensFixas = Object.values(Mensagens).filter(
-  (m): m is EntradaMensagem => typeof m !== 'function',
+const mensagensFixas: EntradaMensagem[] = Object.values(Mensagens).filter(
+  (m) => typeof m !== 'function',
 );
 const mensagensPorCodigo = new Map(mensagensFixas.map((m) => [m.codigo, m]));
 
