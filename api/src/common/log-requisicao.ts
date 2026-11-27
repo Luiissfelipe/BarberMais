@@ -46,7 +46,7 @@ export function registrarRequisicao(
     const duracaoMs = medirDuracaoMs();
     const dados = { ...identificar(), abortada: true, duracaoMs };
     logger.warn(
-      `${req.method} ${dados.caminho} abortada pelo cliente ${duracaoMs}ms`,
+      `${req.method} ${dados.caminho} conexão encerrada antes da resposta ${duracaoMs}ms`,
       dados,
     );
   });
