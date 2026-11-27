@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Usuario {
+  id                  String             @id @db.Uuid
+  email               String             @unique
+  nome                String
+  administrador       Boolean            @default(false)
+  trocaSenhaPendente  Boolean            @default(false)
+  tentativasInvalidas Int                @default(0)
+  bloqueadoAte        DateTime?          @db.Timestamptz
+  registrosOperacao   RegistroOperacao[]
+}
+
+model RegistroOperacao {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  operacao      String
+  entidade      String
+  idItem        String   @db.Uuid
+  valorAnterior String?
+  dataHora      DateTime @default(now()) @db.Timestamptz
+  responsavelId String?  @db.Uuid
+  responsavel   Usuario? @relation(fields: [responsavelId], references: [id], onDelete: Restrict)
+
+  @@index([idItem, dataHora])
+  @@index([responsavelId])
+}

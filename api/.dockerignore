@@ -1,0 +1,13 @@
+node_modules
+dist
+src/generated
+.env
+.env.*
+!.env.example
+*.log
+coverage
+.vscode
+.idea
+Dockerfile
+docker-compose.yml
+.dockerignore
