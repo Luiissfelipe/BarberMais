@@ -55,7 +55,10 @@ function descrever(excecao: unknown): { resumo: string; pilha?: string } {
     return { resumo: 'valor lançado que não é um Error' };
   }
   const codigo = (excecao as { code?: unknown }).code;
-  const pilha = (excecao.stack ?? '')
+  const pilhaSemMensagem = excecao.message
+    ? (excecao.stack ?? '').replace(excecao.message, '')
+    : (excecao.stack ?? '');
+  const pilha = pilhaSemMensagem
     .split('\n')
     .filter((linha) => QUADRO_DE_PILHA.test(linha))
     .join('\n');
